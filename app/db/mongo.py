@@ -16,3 +16,6 @@ async def get_db():
 async def create_indexes():
     await db.users.create_index("username", unique=True)
     await db.users.create_index("email", unique=True)
+    await db.chunks.create_index("file_id")
+    await db.chunks.create_index("metadata.section")
+    await db.chunks.create_index("order")

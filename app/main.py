@@ -1,6 +1,9 @@
+# Fastapi related
 from fastapi import FastAPI
 
+# from project libs
 from app.db.mongo import create_indexes
+from app.core.startup import initialize_templates
 
 # Routers
 from app.auth.routes import router as auth_router
@@ -15,6 +18,7 @@ app = FastAPI(title="Resonate BE 🚀")
 @app.on_event("startup")
 async def startup_event():
     await create_indexes()
+    await initialize_templates()
 
 
 # Root
