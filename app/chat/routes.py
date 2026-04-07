@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, Query
 from typing import Optional
+from pydantic import BaseModel
 
 from app.db.mongo import db
 from app.auth.dependencies import get_current_user
 from app.core.utils import serialize_mongo_list
+from app.vectordb.retriever import retrieve_chunks
+from app.chat.service import build_context, generate_answer, rerank_chunks
 
 router = APIRouter()
 
+class QueryRequest(BaseModel):
+    question: str
 
 @router.get("/debug/chunks")
 async def get_chunks(
@@ -29,3 +34,23 @@ async def get_chunks(
     chunks = serialize_mongo_list(chunks)
 
     return {"chunks": chunks}
+
+@router.post("/query")
+async def query_docs(
+    request: QueryRequest,
+    current_user: str = Depends(get_current_user)
+):
+    # retrieve
+    chunks = retrieve_chunks(request.question, k = 20)
+    chunks = rerank_chunks(request.question, chunks)
+
+    # build context
+    context = build_context(chunks)
+
+    # generate answer
+    answer = generate_answer(request.question, context)
+
+    return {
+        "answer": answer,
+        "sources": chunks
+    }

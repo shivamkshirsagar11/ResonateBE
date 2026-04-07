@@ -209,3 +209,5 @@ __marimo__/
 # Project related
 *.pdf
 chroma_db/*
+chroma_database/*
+.DS_Store

@@ -3,7 +3,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-CHROMADB_PATH = os.path.join(BASE_DIR, "chroma_db")
+CHROMADB_PATH = os.path.join(BASE_DIR, "chroma_database")
 
 # ensure directory exists
 os.makedirs(CHROMADB_PATH, exist_ok=True)

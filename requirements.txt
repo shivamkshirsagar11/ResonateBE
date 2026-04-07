@@ -4,6 +4,7 @@ python-multipart
 pdfplumber
 chromadb
 sentence-transformers
+openai
 
 # MongoDB
 motor

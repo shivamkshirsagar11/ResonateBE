@@ -2,12 +2,12 @@ import os
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form, BackgroundTasks
 
 from app.db.mongo import db
 from app.auth.dependencies import get_current_user
 
-from app.upload.service import extract_pdf_structure
+from app.upload.service import extract_pdf_structure, process_document_pipeline
 from app.upload.structure import detect_structure
 from app.upload.chunker import create_chunks
 from app.vectordb.service import index_file_chunks
@@ -20,6 +20,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/file")
 async def upload_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     doc_type: str = Form(...),  # legal | financial | documentation
     current_user: str = Depends(get_current_user)
@@ -81,48 +82,13 @@ async def upload_file(
         "status": "processing",  # immediately processing
         "requires_consistency": requires_consistency,
         "created_at": datetime.now(timezone.utc),
-
-        # FUTURE: versioning
-        # "version": 1
     }
 
     await db["documents"].insert_one(doc)
     
-    pages_data = await extract_pdf_structure(file_path)
+    print("[upload.routes.upload_file] Adding task to background")
 
-    print("[upload.routes.upload_file] Updating document_raw")
-    # TEMP: just log or store raw (we'll refine later)
-    await db["document_raw"].insert_one({
-        "file_id": file_id,
-        "pages": pages_data
-    })
-
-    print("[upload.routes.upload_file] Detecting structure")
-    structured_blocks = detect_structure(pages_data)
-
-    await db["document_structured"].insert_one({
-        "file_id": file_id,
-        "blocks": structured_blocks
-    })
-    
-    print("[upload.routes.upload_file] Creating chunks")
-    chunks = create_chunks(structured_blocks, template_attributes, requires_consistency)
-    chunk_docs = []
-
-    for i, chunk in enumerate(chunks):
-        chunk_docs.append({
-            "chunk_id": f"{file_id}_{i}",
-            "file_id": file_id,
-            "text": chunk["text"],
-            "metadata": chunk["metadata"],
-            "token_count": chunk["token_count"],
-            "order": chunk["order"]
-        })
-
-    if chunk_docs:
-        await db["chunks"].insert_many(chunk_docs)
-    
-    print("[upload.routes.upload_file] Calling vectordb services")
+    background_tasks.add_task(process_document_pipeline, file_id)
 
     indexed_count = await index_file_chunks(file_id)
     
