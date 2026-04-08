@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form, BackgroundTasks, status
 
 from app.db.mongo import db
 from app.auth.dependencies import get_current_user
@@ -18,7 +18,7 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-@router.post("/file")
+@router.post("/file", status_code=status.HTTP_202_ACCEPTED)
 async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -86,23 +86,9 @@ async def upload_file(
 
     await db["documents"].insert_one(doc)
     
-    print("[upload.routes.upload_file] Adding task to background")
+    print("[upload.routes.upload_file] Adding task to background...")
 
     background_tasks.add_task(process_document_pipeline, file_id)
-
-    indexed_count = await index_file_chunks(file_id)
-    
-    print("[upload.routes.upload_file] Indexed:", indexed_count)
-
-    await db["documents"].update_one(
-        {"file_id": file_id},
-        {
-            "$set": {
-                "status": "completed",
-                "indexed_chunks": indexed_count
-            }
-        }
-    )
 
     return {
         "message": "File uploaded and processing started",

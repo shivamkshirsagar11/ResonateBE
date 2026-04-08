@@ -1,5 +1,6 @@
 # Fastapi related
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # from project libs
 from app.db.mongo import create_indexes
@@ -13,6 +14,13 @@ from app.chat.routes import router as chat_router
 
 app = FastAPI(title="Resonate BE 🚀")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Startup event
 @app.on_event("startup")

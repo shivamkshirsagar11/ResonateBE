@@ -45,27 +45,6 @@ async def process_document_pipeline(file_id: str):
     if merged_blocks:
         print("\n===== SAMPLE MERGED BLOCK =====\n")
         print(merged_blocks[0]["text"][:500])
-    
-    # filtered_blocks = []
-
-    # for block in merged_blocks:
-
-    #     if is_noise_block(block["text"]):
-    #         continue
-
-    #     text = block["text"]
-
-    #     # CLEAN instead of DROP
-    #     cleaned_text = clean_toc_noise(text)
-
-    #     # skip if becomes too small after cleaning
-    #     if len(cleaned_text.split()) < 5:
-    #         continue
-
-    #     block["text"] = cleaned_text
-    #     filtered_blocks.append(block)
-
-    # print("After noise cleaning:", len(filtered_blocks))
 
     # template
     template_doc = await db["templates"].find_one({
@@ -96,10 +75,16 @@ async def process_document_pipeline(file_id: str):
         await db["chunks"].insert_many(chunk_docs)
 
     # index to chroma
-    await index_file_chunks(file_id)
+    indexed_count = await index_file_chunks(file_id)
+    print("[upload.routes.upload_file] Indexed:", indexed_count)
 
     # mark complete
     await db["documents"].update_one(
         {"file_id": file_id},
-        {"$set": {"status": "completed"}}
+        {
+            "$set": {
+                "status": "completed",
+                "indexed_chunks": indexed_count
+            }
+        }
     )
